@@ -1,0 +1,33 @@
+[package]
+name = "xrs-core"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+aes.workspace = true
+aes-gcm.workspace = true
+async-trait.workspace = true
+bytes.workspace = true
+chacha20poly1305.workspace = true
+crc32fast.workspace = true
+hkdf.workspace = true
+hmac.workspace = true
+md-5.workspace = true
+native-tls.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+sha3.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-native-tls.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+xrs-common.workspace = true
+xrs-config.workspace = true
+xrs-observability.workspace = true
+xrs-router.workspace = true

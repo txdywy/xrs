@@ -1,0 +1,13 @@
+{
+  "log": {"level": "debug"},
+  "outbounds": [
+    {"tag": "blocked", "protocol": "blackhole"}
+  ],
+  "routing": {
+    "rules": [
+      {"inboundTag": ["socks-in"], "outboundTag": "blocked"}
+    ]
+  },
+  "dns": {"servers": ["1.1.1.1"]},
+  "stats": {}
+}
