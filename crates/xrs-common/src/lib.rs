@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 
 use serde::{Deserialize, Serialize};
-use std::{fmt, net::IpAddr, str::FromStr};
+use std::{collections::HashMap, fmt, net::IpAddr, str::FromStr};
 use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -74,6 +74,9 @@ pub struct SessionContext {
     pub destination: Destination,
     pub source_ip: Option<IpAddr>,
     pub source_port: Option<u16>,
+    pub user: Option<String>,
+    pub protocol: Option<String>,
+    pub attributes: HashMap<String, String>,
 }
 
 impl SessionContext {
@@ -84,6 +87,9 @@ impl SessionContext {
             destination,
             source_ip: None,
             source_port: None,
+            user: None,
+            protocol: None,
+            attributes: HashMap::new(),
         }
     }
 
@@ -96,6 +102,24 @@ impl SessionContext {
     #[must_use]
     pub fn with_source_port(mut self, source_port: u16) -> Self {
         self.source_port = Some(source_port);
+        self
+    }
+
+    #[must_use]
+    pub fn with_user(mut self, user: impl Into<String>) -> Self {
+        self.user = Some(user.into());
+        self
+    }
+
+    #[must_use]
+    pub fn with_protocol(mut self, protocol: impl Into<String>) -> Self {
+        self.protocol = Some(protocol.into());
+        self
+    }
+
+    #[must_use]
+    pub fn with_attribute(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
+        self.attributes.insert(name.into(), value.into());
         self
     }
 }
