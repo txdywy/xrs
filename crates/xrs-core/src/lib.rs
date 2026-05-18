@@ -10654,6 +10654,7 @@ mod tests {
                 assert_eq!(selected, Some(b"h2".to_vec()));
             }
             OutboundStream::Tcp(_) => panic!("expected TLS stream"),
+            OutboundStream::NestedTls(_) => panic!("unexpected nested TLS stream"),
         }
         let selected = server.await.unwrap();
         assert_eq!(selected, Some(b"h2".to_vec()));
