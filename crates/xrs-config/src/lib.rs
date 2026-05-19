@@ -763,18 +763,27 @@ impl InboundConfig {
         if network.is_empty() {
             return Ok(());
         }
-        if self.protocol == InboundProtocol::DokodemoDoor && matches!(network, "tcp" | "udp") {
+        let parts = network.split(',').map(str::trim).collect::<Vec<_>>();
+        if self.protocol == InboundProtocol::DokodemoDoor
+            && parts.iter().all(|part| matches!(*part, "tcp" | "udp"))
+            && parts.len() <= 2
+            && parts.iter().filter(|part| **part == "tcp").count() <= 1
+            && parts.iter().filter(|part| **part == "udp").count() <= 1
+        {
             return Ok(());
         }
-        if self.protocol == InboundProtocol::Shadowsocks {
-            let parts = network
-                .split(',')
-                .map(str::trim)
-                .filter(|part| !part.is_empty())
-                .collect::<Vec<_>>();
-            if !parts.is_empty() && parts.iter().all(|part| matches!(*part, "tcp" | "udp")) {
-                return Ok(());
-            }
+        let non_empty_parts = parts
+            .iter()
+            .copied()
+            .filter(|part| !part.is_empty())
+            .collect::<Vec<_>>();
+        if self.protocol == InboundProtocol::Shadowsocks
+            && !non_empty_parts.is_empty()
+            && non_empty_parts
+                .iter()
+                .all(|part| matches!(*part, "tcp" | "udp"))
+        {
+            return Ok(());
         }
         Err(ConfigError::UnsupportedInboundSettingsField(
             "network".to_owned(),
@@ -827,6 +836,48 @@ impl InboundConfig {
             ));
         }
         Ok(())
+    }
+
+    fn validate_inbound_client_fields(
+        &self,
+        settings: &InboundSettings,
+    ) -> Result<(), ConfigError> {
+        for client in &settings.clients {
+            let field = match self.protocol {
+                InboundProtocol::Trojan
+                    if client.id.as_deref().is_some_and(|id| !id.is_empty()) =>
+                {
+                    Some("id")
+                }
+                InboundProtocol::Vless | InboundProtocol::Vmess
+                    if client
+                        .password
+                        .as_deref()
+                        .is_some_and(|password| !password.is_empty()) =>
+                {
+                    Some("password")
+                }
+                _ => None,
+            };
+            if let Some(field) = field {
+                return Err(ConfigError::UnsupportedInboundClientField(field.to_owned()));
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_inbound_decryption_mode(
+        &self,
+        settings: &InboundSettings,
+    ) -> Result<(), ConfigError> {
+        if self.protocol == InboundProtocol::Vless
+            || settings.decryption.as_deref().is_none_or(str::is_empty)
+        {
+            return Ok(());
+        }
+        Err(ConfigError::UnsupportedInboundSettingsField(
+            "decryption".to_owned(),
+        ))
     }
 
     fn validate_inbound_credential_mode(
@@ -886,6 +937,8 @@ impl InboundConfig {
             self.validate_inbound_network_mode(settings)?;
             self.validate_inbound_target_mode(settings)?;
             self.validate_inbound_principal_mode(settings)?;
+            self.validate_inbound_client_fields(settings)?;
+            self.validate_inbound_decryption_mode(settings)?;
             self.validate_inbound_credential_mode(settings)?;
         }
         if self.protocol == InboundProtocol::DokodemoDoor {
@@ -1033,7 +1086,7 @@ impl SniffingConfig {
         }
         self.dest_override
             .iter()
-            .any(|value| !matches!(value.as_str(), "" | "http" | "tls" | "fakedns" | "quic"))
+            .any(|value| !matches!(value.as_str(), "" | "http" | "tls" | "quic"))
             || self
                 .domains_excluded
                 .iter()
@@ -1140,6 +1193,11 @@ impl InboundSettings {
         if let Some(field) = self.unsupported_field() {
             return Err(ConfigError::UnsupportedInboundSettingsField(field));
         }
+        if self.user_level.is_some_and(|user_level| user_level != 0) {
+            return Err(ConfigError::UnsupportedInboundSettingsField(
+                "userLevel".to_owned(),
+            ));
+        }
         for account in &self.accounts {
             if let Some(field) = account.unsupported_field() {
                 return Err(ConfigError::UnsupportedInboundAccountField(field));
@@ -1205,6 +1263,9 @@ impl InboundClientConfig {
         }
         if self.alter_id.is_some_and(|alter_id| alter_id != 0) {
             return Some("alterId".to_owned());
+        }
+        if self.level.is_some_and(|level| level != 0) {
+            return Some("level".to_owned());
         }
         unsupported_non_empty_extra_field(&self.extra)
     }
@@ -1287,18 +1348,29 @@ impl OutboundConfig {
                 "security".to_owned(),
             ));
         }
-        if !matches!(
-            self.protocol,
-            OutboundProtocol::Socks
-                | OutboundProtocol::Http
-                | OutboundProtocol::Shadowsocks
-                | OutboundProtocol::Trojan
-                | OutboundProtocol::Vmess
-                | OutboundProtocol::Vless
-        ) && server.level.is_some()
+        if self.protocol != OutboundProtocol::Vless
+            && server.extra.get("encryption").is_some_and(|value| {
+                value
+                    .as_str()
+                    .is_some_and(|encryption| !encryption.is_empty())
+            })
         {
             return Err(ConfigError::UnsupportedOutboundServerField(
+                "encryption".to_owned(),
+            ));
+        }
+        if server.level.is_some_and(|level| level != 0) {
+            return Err(ConfigError::UnsupportedOutboundServerField(
                 "level".to_owned(),
+            ));
+        }
+        if server
+            .email
+            .as_deref()
+            .is_some_and(|email| !email.is_empty())
+        {
+            return Err(ConfigError::UnsupportedOutboundServerField(
+                "email".to_owned(),
             ));
         }
         Ok(())
@@ -1420,6 +1492,15 @@ impl OutboundConfig {
                 }
             }
         }
+        if let Some(send_through) = self.send_through.as_deref()
+            && !send_through.is_empty()
+            && (self.protocol != OutboundProtocol::Freedom
+                || send_through.parse::<IpAddr>().is_err())
+        {
+            return Err(ConfigError::UnsupportedOutboundSettingsField(
+                "sendThrough".to_owned(),
+            ));
+        }
         if self.protocol == OutboundProtocol::Freedom
             && let Some(settings) = self.settings.as_ref()
         {
@@ -1511,13 +1592,15 @@ impl OutboundConfig {
                 "proxyProtocol".to_owned(),
             ));
         }
-        if self.protocol != OutboundProtocol::Freedom
-            && let Some(user_level) = self
-                .settings
-                .as_ref()
-                .and_then(|settings| settings.user_level)
+        if let Some(user_level) = self
+            .settings
+            .as_ref()
+            .and_then(|settings| settings.user_level)
             && user_level != 0
         {
+            if self.protocol == OutboundProtocol::Freedom {
+                return Err(ConfigError::UnsupportedFreedomUserLevel(user_level));
+            }
             return Err(ConfigError::UnsupportedOutboundSettingsField(
                 "userLevel".to_owned(),
             ));
@@ -1638,10 +1721,10 @@ fn is_inert_freedom_fragment(value: &Value) -> bool {
 }
 
 fn is_empty_or_zero_fragment_value(value: &Value) -> bool {
-    value
-        .as_str()
-        .is_some_and(|value| value.is_empty() || value == "0")
-        || value.as_i64() == Some(0)
+    value.as_str().is_some_and(|value| {
+        let value = value.trim();
+        value.is_empty() || value == "0" || value == "0-0"
+    }) || value.as_i64() == Some(0)
         || value.as_u64() == Some(0)
 }
 
@@ -3214,6 +3297,13 @@ impl StreamSettingsConfig {
         self.validate_common_with_raw_validator(
             RawSettingsConfig::has_unsupported_inbound_feature,
         )?;
+        if self
+            .sockopt
+            .as_ref()
+            .is_some_and(|sockopt| sockopt.tcp_fast_open)
+        {
+            return Err(ConfigError::UnsupportedSockoptFeature);
+        }
         if let Some(security) = &self.security
             && !security.is_empty()
             && security != "none"
@@ -4845,8 +4935,8 @@ mod tests {
     }
 
     #[test]
-    fn accepts_dokodemo_door_network_settings() {
-        for network in ["tcp", "udp"] {
+    fn accepts_dokodemo_door_supported_network_settings() {
+        for network in ["tcp", "udp", "tcp,udp", "tcp, udp"] {
             let json = format!(
                 r#"
                 {{
@@ -4884,6 +4974,18 @@ mod tests {
             (
                 "dokodemo-door",
                 r#"{"address":"127.0.0.1","port":80,"network":"tcp, tcp"}"#,
+            ),
+            (
+                "dokodemo-door",
+                r#"{"address":"127.0.0.1","port":80,"network":"tcp,"}"#,
+            ),
+            (
+                "dokodemo-door",
+                r#"{"address":"127.0.0.1","port":80,"network":",udp"}"#,
+            ),
+            (
+                "dokodemo-door",
+                r#"{"address":"127.0.0.1","port":80,"network":"tcp,,udp"}"#,
             ),
             ("socks", r#"{"network":"tcp"}"#),
             ("http", r#"{"network":"tcp"}"#),
@@ -5073,7 +5175,7 @@ mod tests {
     }
 
     #[test]
-    fn accepts_proxy_server_email() {
+    fn rejects_proxy_server_email() {
         let json = r#"
         {
           "inbounds": [{"tag":"socks-in","listen":"127.0.0.1","port":1080,"protocol":"socks"}],
@@ -5082,7 +5184,10 @@ mod tests {
         "#;
 
         let config: RootConfig = serde_json::from_str(json).unwrap();
-        config.validate().unwrap();
+        assert!(matches!(
+            config.validate(),
+            Err(ConfigError::UnsupportedOutboundServerField(field)) if field == "email"
+        ));
     }
 
     #[test]
@@ -5739,22 +5844,36 @@ mod tests {
     }
 
     #[test]
-    fn accepts_inert_inbound_user_level() {
-        for user_level in [0, 1] {
-            let json = format!(
-                r#"{{
-                  "inbounds": [{{"tag":"socks-in","port":1080,"protocol":"socks","settings":{{"userLevel":{user_level}}}}}],
-                  "outbounds": [{{"tag":"direct","protocol":"freedom"}}]
-                }}"#
-            );
-
-            let config: RootConfig = serde_json::from_str(&json).unwrap();
-            config.validate().unwrap();
-            assert_eq!(
-                config.inbounds[0].settings.as_ref().unwrap().user_level,
-                Some(user_level)
-            );
+    fn accepts_inert_inbound_user_level_zero() {
+        let json = r#"
+        {
+          "inbounds": [{"tag":"socks-in","port":1080,"protocol":"socks","settings":{"userLevel":0}}],
+          "outbounds": [{"tag":"direct","protocol":"freedom"}]
         }
+        "#;
+
+        let config: RootConfig = serde_json::from_str(json).unwrap();
+        config.validate().unwrap();
+        assert_eq!(
+            config.inbounds[0].settings.as_ref().unwrap().user_level,
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn rejects_active_inbound_user_level() {
+        let json = r#"
+        {
+          "inbounds": [{"tag":"socks-in","port":1080,"protocol":"socks","settings":{"userLevel":1}}],
+          "outbounds": [{"tag":"direct","protocol":"freedom"}]
+        }
+        "#;
+
+        let config: RootConfig = serde_json::from_str(json).unwrap();
+        assert!(matches!(
+            config.validate(),
+            Err(ConfigError::UnsupportedInboundSettingsField(field)) if field == "userLevel"
+        ));
     }
 
     #[test]
@@ -5824,6 +5943,33 @@ mod tests {
             assert!(matches!(
                 config.validate(),
                 Err(ConfigError::UnsupportedInboundSettingsField(actual)) if actual == field
+            ));
+        }
+    }
+
+    #[test]
+    fn rejects_non_vless_inbound_decryption() {
+        for (protocol, settings) in [
+            (
+                "trojan",
+                r#"{"decryption":"none","clients":[{"password":"secret"}]}"#,
+            ),
+            (
+                "vmess",
+                r#"{"decryption":"none","clients":[{"id":"01234567-89ab-cdef-0123-456789abcdef"}]}"#,
+            ),
+        ] {
+            let json = format!(
+                r#"{{
+                  "inbounds": [{{"tag":"test-in","port":1080,"protocol":"{protocol}","settings":{settings}}}],
+                  "outbounds": [{{"tag":"direct","protocol":"freedom"}}]
+                }}"#
+            );
+
+            let config: RootConfig = serde_json::from_str(&json).unwrap();
+            assert!(matches!(
+                config.validate(),
+                Err(ConfigError::UnsupportedInboundSettingsField(field)) if field == "decryption"
             ));
         }
     }
@@ -5916,19 +6062,67 @@ mod tests {
 
     #[test]
     fn accepts_inert_inbound_client_metadata() {
-        for level in [0, 1] {
+        let json = r#"
+        {
+          "inbounds": [{"tag":"trojan-in","port":1080,"protocol":"trojan","settings":{"clients":[{"password":"secret","email":"alice@example.com","level":0}]}}],
+          "outbounds": [{"tag":"direct","protocol":"freedom"}]
+        }
+        "#;
+
+        let config: RootConfig = serde_json::from_str(json).unwrap();
+        config.validate().unwrap();
+        let client = &config.inbounds[0].settings.as_ref().unwrap().clients[0];
+        assert_eq!(client.email.as_deref(), Some("alice@example.com"));
+        assert_eq!(client.level, Some(0));
+    }
+
+    #[test]
+    fn rejects_active_inbound_client_level() {
+        let json = r#"
+        {
+          "inbounds": [{"tag":"trojan-in","port":1080,"protocol":"trojan","settings":{"clients":[{"password":"secret","email":"alice@example.com","level":1}]}}],
+          "outbounds": [{"tag":"direct","protocol":"freedom"}]
+        }
+        "#;
+
+        let config: RootConfig = serde_json::from_str(json).unwrap();
+        assert!(matches!(
+            config.validate(),
+            Err(ConfigError::UnsupportedInboundClientField(field)) if field == "level"
+        ));
+    }
+
+    #[test]
+    fn rejects_unowned_inbound_client_fields() {
+        for (protocol, client, field) in [
+            (
+                "trojan",
+                r#""password":"secret","id":"01234567-89ab-cdef-0123-456789abcdef""#,
+                "id",
+            ),
+            (
+                "vless",
+                r#""id":"01234567-89ab-cdef-0123-456789abcdef","password":"secret""#,
+                "password",
+            ),
+            (
+                "vmess",
+                r#""id":"01234567-89ab-cdef-0123-456789abcdef","password":"secret""#,
+                "password",
+            ),
+        ] {
             let json = format!(
                 r#"{{
-                  "inbounds": [{{"tag":"trojan-in","port":1080,"protocol":"trojan","settings":{{"clients":[{{"password":"secret","email":"alice@example.com","level":{level}}}]}}}}],
+                  "inbounds": [{{"tag":"proxy-in","port":1080,"protocol":"{protocol}","settings":{{"clients":[{{{client}}}],"decryption":"none"}}}}],
                   "outbounds": [{{"tag":"direct","protocol":"freedom"}}]
                 }}"#
             );
 
             let config: RootConfig = serde_json::from_str(&json).unwrap();
-            config.validate().unwrap();
-            let client = &config.inbounds[0].settings.as_ref().unwrap().clients[0];
-            assert_eq!(client.email.as_deref(), Some("alice@example.com"));
-            assert_eq!(client.level, Some(level));
+            assert!(matches!(
+                config.validate(),
+                Err(ConfigError::UnsupportedInboundClientField(rejected_field)) if rejected_field == field
+            ));
         }
     }
 
@@ -7863,7 +8057,7 @@ mod tests {
     }
 
     #[test]
-    fn accepts_enabled_fakedns_inbound_sniffing_destination_override() {
+    fn rejects_enabled_fakedns_inbound_sniffing_destination_override() {
         let json = r#"
         {
           "inbounds": [{"tag":"socks-in","port":1080,"protocol":"socks","sniffing":{"enabled":true,"destOverride":["fakedns"]}}],
@@ -7872,10 +8066,10 @@ mod tests {
         "#;
 
         let config: RootConfig = serde_json::from_str(json).unwrap();
-        config.validate().unwrap();
-        let sniffing = config.inbounds[0].sniffing.as_ref().unwrap();
-        assert!(sniffing.enabled);
-        assert_eq!(sniffing.dest_override, ["fakedns"]);
+        assert!(matches!(
+            config.validate(),
+            Err(ConfigError::UnsupportedSniffingFeature)
+        ));
     }
 
     #[test]
@@ -8251,6 +8445,11 @@ mod tests {
                 "id",
             ),
             ("shadowsocks", r#""security":"none""#, "security"),
+            ("vmess", r#""encryption":"none""#, "encryption"),
+            ("trojan", r#""encryption":"none""#, "encryption"),
+            ("shadowsocks", r#""encryption":"none""#, "encryption"),
+            ("socks", r#""encryption":"none""#, "encryption"),
+            ("http", r#""encryption":"none""#, "encryption"),
         ] {
             let json = format!(
                 r#"{{
@@ -8302,7 +8501,7 @@ mod tests {
     }
 
     #[test]
-    fn accepts_freedom_domain_send_through() {
+    fn rejects_freedom_domain_send_through() {
         let json = r#"
         {
           "inbounds": [{"tag":"socks-in","port":1080,"protocol":"socks"}],
@@ -8315,11 +8514,14 @@ mod tests {
             config.outbounds[0].send_through.as_deref(),
             Some("example.com")
         );
-        config.validate().unwrap();
+        assert!(matches!(
+            config.validate(),
+            Err(ConfigError::UnsupportedOutboundSettingsField(field)) if field == "sendThrough"
+        ));
     }
 
     #[test]
-    fn accepts_non_freedom_outbound_send_through() {
+    fn rejects_non_freedom_outbound_send_through() {
         for (protocol, send_through) in [("blackhole", "127.0.0.1"), ("blackhole", "example.com")] {
             let json = format!(
                 r#"{{
@@ -8333,7 +8535,10 @@ mod tests {
                 config.outbounds[0].send_through.as_deref(),
                 Some(send_through)
             );
-            config.validate().unwrap();
+            assert!(matches!(
+                config.validate(),
+                Err(ConfigError::UnsupportedOutboundSettingsField(field)) if field == "sendThrough"
+            ));
         }
     }
 
@@ -8708,7 +8913,35 @@ mod tests {
     }
 
     #[test]
-    fn accepts_inert_outbound_server_level() {
+    fn accepts_inert_outbound_server_level_zero() {
+        for (protocol, extra) in [
+            ("socks", r#""user":"alice","password":"secret","#),
+            ("http", r#""user":"alice","password":"secret","#),
+            (
+                "shadowsocks",
+                r#""method":"chacha20-ietf-poly1305","password":"secret","#,
+            ),
+            (
+                "vmess",
+                r#""id":"01234567-89ab-cdef-0123-456789abcdef","security":"none","#,
+            ),
+        ] {
+            let json = format!(
+                r#"{{
+                  "inbounds": [{{"tag":"socks-in","port":1080,"protocol":"socks"}}],
+                  "outbounds": [{{"tag":"proxy","protocol":"{protocol}","settings":{{"servers":[{{"address":"127.0.0.1","port":1081,{extra}"level":0}}]}}}}]
+                }}"#
+            );
+
+            let config: RootConfig = serde_json::from_str(&json).unwrap();
+            config.validate().unwrap();
+            let server = &config.outbounds[0].settings.as_ref().unwrap().servers[0];
+            assert_eq!(server.level, Some(0));
+        }
+    }
+
+    #[test]
+    fn rejects_active_outbound_server_level() {
         for (protocol, extra) in [
             ("socks", r#""user":"alice","password":"secret","#),
             ("http", r#""user":"alice","password":"secret","#),
@@ -8729,9 +8962,10 @@ mod tests {
             );
 
             let config: RootConfig = serde_json::from_str(&json).unwrap();
-            config.validate().unwrap();
-            let server = &config.outbounds[0].settings.as_ref().unwrap().servers[0];
-            assert_eq!(server.level, Some(1));
+            assert!(matches!(
+                config.validate(),
+                Err(ConfigError::UnsupportedOutboundServerField(field)) if field == "level"
+            ));
         }
     }
 
@@ -9123,26 +9357,16 @@ mod tests {
     }
 
     #[test]
-    fn accepts_tcp_fast_open_sockopt_stream_settings() {
+    fn accepts_outbound_tcp_fast_open_sockopt_stream_settings() {
         let json = r#"
         {
-          "inbounds": [{"tag":"socks-in","listen":"127.0.0.1","port":1080,"protocol":"socks","streamSettings":{"sockopt":{"tcpFastOpen":true}}}],
+          "inbounds": [{"tag":"socks-in","listen":"127.0.0.1","port":1080,"protocol":"socks"}],
           "outbounds": [{"tag":"direct","protocol":"freedom","streamSettings":{"sockopt":{"tcpFastOpen":true}}}]
         }
         "#;
 
         let config: RootConfig = serde_json::from_str(json).unwrap();
         config.validate().unwrap();
-        assert!(
-            config.inbounds[0]
-                .stream_settings
-                .as_ref()
-                .unwrap()
-                .sockopt
-                .as_ref()
-                .unwrap()
-                .tcp_fast_open
-        );
         assert!(
             config.outbounds[0]
                 .stream_settings
@@ -9153,6 +9377,22 @@ mod tests {
                 .unwrap()
                 .tcp_fast_open
         );
+    }
+
+    #[test]
+    fn rejects_inbound_tcp_fast_open_sockopt_stream_settings() {
+        let json = r#"
+        {
+          "inbounds": [{"tag":"socks-in","listen":"127.0.0.1","port":1080,"protocol":"socks","streamSettings":{"sockopt":{"tcpFastOpen":true}}}],
+          "outbounds": [{"tag":"direct","protocol":"freedom"}]
+        }
+        "#;
+
+        let config: RootConfig = serde_json::from_str(json).unwrap();
+        assert!(matches!(
+            config.validate(),
+            Err(ConfigError::UnsupportedSockoptFeature)
+        ));
     }
 
     #[test]
@@ -11395,7 +11635,7 @@ mod tests {
     }
 
     #[test]
-    fn accepts_freedom_user_level_settings() {
+    fn rejects_active_freedom_user_level_settings() {
         let json = r#"
         {
           "inbounds": [{"tag":"socks-in","listen":"127.0.0.1","port":1080,"protocol":"socks"}],
@@ -11404,11 +11644,10 @@ mod tests {
         "#;
 
         let config: RootConfig = serde_json::from_str(json).unwrap();
-        config.validate().unwrap();
-        assert_eq!(
-            config.outbounds[0].settings.as_ref().unwrap().user_level,
-            Some(1)
-        );
+        assert!(matches!(
+            config.validate(),
+            Err(ConfigError::UnsupportedFreedomUserLevel(1))
+        ));
     }
 
     #[test]
@@ -11451,6 +11690,7 @@ mod tests {
             "{}",
             r#"{"packets":"","length":"","interval":""}"#,
             r#"{"packets":"0","length":"0","interval":"0"}"#,
+            r#"{"packets":"0-0","length":"0-0","interval":"0-0"}"#,
             r#"{"packets":0,"length":0,"interval":0}"#,
         ] {
             let json = format!(
@@ -11490,6 +11730,7 @@ mod tests {
             "{}",
             r#"{"packets":"","length":"","interval":""}"#,
             r#"{"packets":"0","length":"0","interval":"0"}"#,
+            r#"{"packets":"0-0","length":"0-0","interval":"0-0"}"#,
             r#"{"packets":0,"length":0,"interval":0}"#,
         ] {
             let json = format!(

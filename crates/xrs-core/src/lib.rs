@@ -729,22 +729,40 @@ async fn pick_tcp_outbound<'a>(
             if let Some(outbound) = router.pick_rule_outbound(session) {
                 return Ok(outbound);
             }
-            let resolved_sessions =
-                resolve_destination_sessions(session, destination, dns_hosts).await?;
+            let resolved_sessions = resolve_destination_sessions(
+                session,
+                destination,
+                dns_hosts,
+                routing_dns_query_strategy(router.domain_strategy()),
+            )
+            .await?;
             Ok(router
                 .pick_rule_outbound_for_any(&resolved_sessions)
                 .unwrap_or(router.default_outbound()))
         }
         RoutingDomainStrategy::IpOnDemand => {
             let mut sessions = vec![session.clone()];
-            sessions.extend(resolve_destination_sessions(session, destination, dns_hosts).await?);
+            sessions.extend(
+                resolve_destination_sessions(
+                    session,
+                    destination,
+                    dns_hosts,
+                    routing_dns_query_strategy(router.domain_strategy()),
+                )
+                .await?,
+            );
             Ok(router
                 .pick_rule_outbound_for_any(&sessions)
                 .unwrap_or(router.default_outbound()))
         }
         RoutingDomainStrategy::UseIpv4 => {
-            let resolved_sessions =
-                resolve_destination_sessions(session, destination, dns_hosts).await?;
+            let resolved_sessions = resolve_destination_sessions(
+                session,
+                destination,
+                dns_hosts,
+                routing_dns_query_strategy(router.domain_strategy()),
+            )
+            .await?;
             Ok(pick_family_rule_outbound(
                 router,
                 resolved_sessions,
@@ -753,8 +771,13 @@ async fn pick_tcp_outbound<'a>(
             ))
         }
         RoutingDomainStrategy::UseIpv6 => {
-            let resolved_sessions =
-                resolve_destination_sessions(session, destination, dns_hosts).await?;
+            let resolved_sessions = resolve_destination_sessions(
+                session,
+                destination,
+                dns_hosts,
+                routing_dns_query_strategy(router.domain_strategy()),
+            )
+            .await?;
             Ok(pick_family_rule_outbound(
                 router,
                 resolved_sessions,
@@ -763,8 +786,13 @@ async fn pick_tcp_outbound<'a>(
             ))
         }
         RoutingDomainStrategy::UseIpv4v6 => {
-            let resolved_sessions =
-                resolve_destination_sessions(session, destination, dns_hosts).await?;
+            let resolved_sessions = resolve_destination_sessions(
+                session,
+                destination,
+                dns_hosts,
+                routing_dns_query_strategy(router.domain_strategy()),
+            )
+            .await?;
             Ok(pick_family_rule_outbound(
                 router,
                 resolved_sessions,
@@ -773,8 +801,13 @@ async fn pick_tcp_outbound<'a>(
             ))
         }
         RoutingDomainStrategy::UseIpv6v4 => {
-            let resolved_sessions =
-                resolve_destination_sessions(session, destination, dns_hosts).await?;
+            let resolved_sessions = resolve_destination_sessions(
+                session,
+                destination,
+                dns_hosts,
+                routing_dns_query_strategy(router.domain_strategy()),
+            )
+            .await?;
             Ok(pick_family_rule_outbound(
                 router,
                 resolved_sessions,
@@ -801,22 +834,40 @@ async fn pick_udp_outbound<'a>(
             if let Some(outbound) = router.pick_rule_outbound(session) {
                 return Ok(outbound);
             }
-            let resolved_sessions =
-                resolve_destination_sessions(session, destination, dns_hosts).await?;
+            let resolved_sessions = resolve_destination_sessions(
+                session,
+                destination,
+                dns_hosts,
+                routing_dns_query_strategy(router.domain_strategy()),
+            )
+            .await?;
             Ok(router
                 .pick_rule_outbound_for_any(&resolved_sessions)
                 .unwrap_or(router.default_outbound()))
         }
         RoutingDomainStrategy::IpOnDemand => {
             let mut sessions = vec![session.clone()];
-            sessions.extend(resolve_destination_sessions(session, destination, dns_hosts).await?);
+            sessions.extend(
+                resolve_destination_sessions(
+                    session,
+                    destination,
+                    dns_hosts,
+                    routing_dns_query_strategy(router.domain_strategy()),
+                )
+                .await?,
+            );
             Ok(router
                 .pick_rule_outbound_for_any(&sessions)
                 .unwrap_or(router.default_outbound()))
         }
         RoutingDomainStrategy::UseIpv4 => {
-            let resolved_sessions =
-                resolve_destination_sessions(session, destination, dns_hosts).await?;
+            let resolved_sessions = resolve_destination_sessions(
+                session,
+                destination,
+                dns_hosts,
+                routing_dns_query_strategy(router.domain_strategy()),
+            )
+            .await?;
             Ok(pick_family_rule_outbound(
                 router,
                 resolved_sessions,
@@ -825,8 +876,13 @@ async fn pick_udp_outbound<'a>(
             ))
         }
         RoutingDomainStrategy::UseIpv6 => {
-            let resolved_sessions =
-                resolve_destination_sessions(session, destination, dns_hosts).await?;
+            let resolved_sessions = resolve_destination_sessions(
+                session,
+                destination,
+                dns_hosts,
+                routing_dns_query_strategy(router.domain_strategy()),
+            )
+            .await?;
             Ok(pick_family_rule_outbound(
                 router,
                 resolved_sessions,
@@ -835,8 +891,13 @@ async fn pick_udp_outbound<'a>(
             ))
         }
         RoutingDomainStrategy::UseIpv4v6 => {
-            let resolved_sessions =
-                resolve_destination_sessions(session, destination, dns_hosts).await?;
+            let resolved_sessions = resolve_destination_sessions(
+                session,
+                destination,
+                dns_hosts,
+                routing_dns_query_strategy(router.domain_strategy()),
+            )
+            .await?;
             Ok(pick_family_rule_outbound(
                 router,
                 resolved_sessions,
@@ -845,8 +906,13 @@ async fn pick_udp_outbound<'a>(
             ))
         }
         RoutingDomainStrategy::UseIpv6v4 => {
-            let resolved_sessions =
-                resolve_destination_sessions(session, destination, dns_hosts).await?;
+            let resolved_sessions = resolve_destination_sessions(
+                session,
+                destination,
+                dns_hosts,
+                routing_dns_query_strategy(router.domain_strategy()),
+            )
+            .await?;
             Ok(pick_family_rule_outbound(
                 router,
                 resolved_sessions,
@@ -854,6 +920,18 @@ async fn pick_udp_outbound<'a>(
                 Some(IpFamily::V4),
             ))
         }
+    }
+}
+
+fn routing_dns_query_strategy(strategy: RoutingDomainStrategy) -> Option<&'static str> {
+    match strategy {
+        RoutingDomainStrategy::UseIpv4 => Some("UseIPv4"),
+        RoutingDomainStrategy::UseIpv6 => Some("UseIPv6"),
+        RoutingDomainStrategy::UseIpv4v6 => Some("UseIPv4v6"),
+        RoutingDomainStrategy::UseIpv6v4 => Some("UseIPv6v4"),
+        RoutingDomainStrategy::AsIs
+        | RoutingDomainStrategy::IpIfNonMatch
+        | RoutingDomainStrategy::IpOnDemand => None,
     }
 }
 
@@ -904,12 +982,13 @@ async fn resolve_destination_sessions(
     session: &SessionContext,
     destination: &Destination,
     dns_hosts: &DnsHosts,
+    query_strategy: Option<&str>,
 ) -> Result<Vec<SessionContext>, CoreError> {
     if let DestinationHost::Domain(domain) = &destination.host {
         if let Some(address) = dns_hosts_lookup(&dns_hosts.hosts, domain) {
             return Ok(vec![resolved_session(session, destination, address)]);
         }
-        match resolve_domain_with_dns_servers(dns_hosts, domain).await? {
+        match resolve_domain_with_dns_servers(dns_hosts, domain, query_strategy).await? {
             DnsServerResolution::Resolved(address) => {
                 return Ok(vec![resolved_session(session, destination, address)]);
             }
@@ -1334,6 +1413,7 @@ async fn handle_client(
 async fn resolve_domain_with_dns_servers(
     dns: &RuntimeDns,
     domain: &str,
+    query_strategy: Option<&str>,
 ) -> Result<DnsServerResolution, CoreError> {
     let has_filtered_match = dns
         .servers
@@ -1352,6 +1432,7 @@ async fn resolve_domain_with_dns_servers(
         let query_strategy = server
             .query_strategy
             .as_deref()
+            .or(query_strategy)
             .or(dns.query_strategy.as_deref());
         if let Some(address) = query_dns_server_for_record(server, domain, query_strategy).await?
             && dns_server_accepts_ip(server, address)
@@ -1955,7 +2036,7 @@ async fn freedom_destination_with_dns_hosts(
     destination: &Destination,
     dns_hosts: &DnsHosts,
 ) -> Result<Destination, CoreError> {
-    let mut destination = destination.clone();
+    let mut destination = freedom_redirect_destination(outbound, destination)?;
     let mut disable_local_fallback = false;
     if freedom_uses_dns_hosts(outbound)
         && let DestinationHost::Domain(domain) = &destination.host
@@ -1963,7 +2044,7 @@ async fn freedom_destination_with_dns_hosts(
         if let Some(address) = dns_hosts_lookup(&dns_hosts.hosts, domain) {
             destination.host = DestinationHost::Ip(address);
         } else {
-            match resolve_domain_with_dns_servers(dns_hosts, domain).await? {
+            match resolve_domain_with_dns_servers(dns_hosts, domain, None).await? {
                 DnsServerResolution::Resolved(address) => {
                     destination.host = DestinationHost::Ip(address);
                 }
@@ -1985,16 +2066,7 @@ async fn freedom_destination(
     outbound: &OutboundConfig,
     destination: &Destination,
 ) -> Result<Destination, CoreError> {
-    let mut destination = if let Some(redirect) = outbound
-        .settings
-        .as_ref()
-        .and_then(|settings| settings.redirect.as_deref())
-    {
-        let (host, port) = parse_redirect_target(redirect)?;
-        Destination::tcp(host, port)
-    } else {
-        destination.clone()
-    };
+    let mut destination = freedom_redirect_destination(outbound, destination)?;
 
     if matches!(destination.host, DestinationHost::Domain(_)) {
         let strategy = freedom_domain_strategy(outbound);
@@ -2010,6 +2082,25 @@ async fn freedom_destination(
     }
 
     Ok(destination)
+}
+
+fn freedom_redirect_destination(
+    outbound: &OutboundConfig,
+    destination: &Destination,
+) -> Result<Destination, CoreError> {
+    let Some(redirect) = outbound
+        .settings
+        .as_ref()
+        .and_then(|settings| settings.redirect.as_deref())
+    else {
+        return Ok(destination.clone());
+    };
+    let (host, port) = parse_redirect_target(redirect)?;
+    Ok(Destination {
+        host,
+        port,
+        network: destination.network,
+    })
 }
 
 fn freedom_uses_dns_hosts(outbound: &OutboundConfig) -> bool {
@@ -2098,7 +2189,7 @@ where
         .is_some_and(|response| response.kind == "http")
     {
         client
-            .write_all(b"HTTP/1.1 403 Forbidden\nConnection: close\nCache-Control: max-age=3600, public\nContent-Length: 0\n\n\n")
+            .write_all(b"HTTP/1.1 403 Forbidden\r\nConnection: close\r\nCache-Control: max-age=3600, public\r\nContent-Length: 0\r\n\r\n")
             .await?;
     }
     client.shutdown().await?;
@@ -4331,6 +4422,13 @@ fn inbound_accounts(inbound: &InboundConfig) -> &[xrs_config::InboundAccountConf
         .map_or(&[], |settings| settings.accounts.as_slice())
 }
 
+fn socks_udp_enabled(inbound: &InboundConfig) -> bool {
+    inbound
+        .settings
+        .as_ref()
+        .is_some_and(|settings| settings.udp == Some(true))
+}
+
 async fn accept_socks5<S>(
     stream: &mut S,
     inbound: &InboundConfig,
@@ -4372,7 +4470,7 @@ where
             accepted.user = user;
             Ok(accepted)
         }
-        0x03 => {
+        0x03 if socks_udp_enabled(inbound) => {
             let listen = inbound
                 .listen
                 .unwrap_or_else(|| "127.0.0.1".parse().expect("valid loopback"));
@@ -6442,6 +6540,12 @@ async fn connect_freedom_for_outbound(
         }
         _ => return Err(CoreError::MissingOutbound(proxy_tag.to_owned())),
     }
+    let proxy_protocol_destination = match &destination.host {
+        DestinationHost::Ip(ip) => Some(SocketAddr::new(*ip, destination.port)),
+        DestinationHost::Domain(_) => None,
+    };
+    write_freedom_proxy_protocol_header(outbound, &mut remote, source, proxy_protocol_destination)
+        .await?;
     wrap_outbound_stream_tls(outbound, &destination, remote).await
 }
 
@@ -6459,16 +6563,19 @@ async fn connect_freedom_destination(
     .await?;
     apply_tcp_socket_options(&stream, outbound.stream_settings.as_ref())?;
     let remote_addr = stream.peer_addr()?;
-    write_freedom_proxy_protocol_header(outbound, &mut stream, source, remote_addr).await?;
+    write_freedom_proxy_protocol_header(outbound, &mut stream, source, Some(remote_addr)).await?;
     wrap_tcp_stream_tls(outbound, destination, stream).await
 }
 
-async fn write_freedom_proxy_protocol_header(
+async fn write_freedom_proxy_protocol_header<S>(
     outbound: &OutboundConfig,
-    stream: &mut TcpStream,
+    stream: &mut S,
     source: Option<SocketAddr>,
-    destination: SocketAddr,
-) -> Result<(), CoreError> {
+    destination: Option<SocketAddr>,
+) -> Result<(), CoreError>
+where
+    S: AsyncWrite + Unpin,
+{
     let Some(version) = outbound
         .settings
         .as_ref()
@@ -6478,9 +6585,11 @@ async fn write_freedom_proxy_protocol_header(
         return Ok(());
     };
     let source = source.ok_or(CoreError::MissingProxyProtocolSource)?;
-    let header = match version {
-        1 => proxy_protocol_v1_header(source, destination),
-        2 => proxy_protocol_v2_header(source, destination),
+    let header = match (version, destination) {
+        (1, Some(destination)) => proxy_protocol_v1_header(source, destination),
+        (1, None) => b"PROXY UNKNOWN\r\n".to_vec(),
+        (2, Some(destination)) => proxy_protocol_v2_header(source, destination),
+        (2, None) => proxy_protocol_v2_unknown_header(),
         _ => Vec::new(),
     };
     stream.write_all(&header).await?;
@@ -6525,6 +6634,12 @@ fn proxy_protocol_v2_header(source: SocketAddr, destination: SocketAddr) -> Vec<
         }
         _ => header.extend_from_slice(&[0x21, 0x00, 0x00, 0x00]),
     }
+    header
+}
+
+fn proxy_protocol_v2_unknown_header() -> Vec<u8> {
+    let mut header = b"\r\n\r\n\0\r\nQUIT\n".to_vec();
+    header.extend_from_slice(&[0x21, 0x00, 0x00, 0x00]);
     header
 }
 
@@ -8000,6 +8115,25 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn freedom_redirect_applies_when_configured_dns_suppresses_fallback() {
+        let dns_hosts = Arc::new(parse_runtime_dns(Some(&serde_json::json!({
+            "disableFallback": true,
+            "servers": [{"address":"127.0.0.1","port":9,"domains":["domain:localhost"],"expectIPs":["127.0.0.1"]}]
+        }))));
+        let mut outbound = freedom_outbound_with_domain_strategy(Some("UseIP"));
+        outbound.settings.as_mut().unwrap().redirect = Some("127.0.0.1:8443".to_owned());
+        let destination = Destination::tcp(DestinationHost::Domain("localhost".to_owned()), 443);
+
+        let resolved = freedom_destination_with_dns_hosts(&outbound, &destination, &dns_hosts)
+            .await
+            .unwrap();
+
+        assert_eq!(resolved.host, DestinationHost::parse("127.0.0.1").unwrap());
+        assert_eq!(resolved.port, 8443);
+        assert_eq!(resolved.network, Network::Tcp);
+    }
+
+    #[tokio::test]
     async fn disable_fallback_if_match_stops_after_filtered_dns_server_rejects_answer() {
         let (wrong_port, wrong_task) = start_udp_dns_a_server([127, 0, 0, 2]).await;
         let (fallback_port, fallback_task) = start_udp_dns_a_server([127, 0, 0, 1]).await;
@@ -8311,9 +8445,36 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn rejects_socks5_udp_associate_when_udp_is_disabled() {
+        for udp in [None, Some(false)] {
+            let (mut client, mut server) = duplex(1024);
+            let mut inbound = test_inbound(InboundProtocol::Socks);
+            inbound.settings = Some(xrs_config::InboundSettings {
+                udp,
+                ..xrs_config::InboundSettings::default()
+            });
+            let task = tokio::spawn(async move { accept_socks5(&mut server, &inbound).await });
+
+            client.write_all(&[0x05, 0x01, 0x00]).await.unwrap();
+            let mut method = [0_u8; 2];
+            client.read_exact(&mut method).await.unwrap();
+            assert_eq!(method, [0x05, 0x00]);
+            client
+                .write_all(&[0x05, 0x03, 0x00, 0x01, 0, 0, 0, 0, 0, 0])
+                .await
+                .unwrap();
+
+            assert!(matches!(
+                task.await.unwrap(),
+                Err(CoreError::UnsupportedSocksCommand(0x03))
+            ));
+        }
+    }
+
+    #[tokio::test]
     async fn socks5_udp_associate_reaches_udp_server_through_freedom() {
         let (upstream_port, upstream_task) = start_udp_dns_server(b"pong".to_vec()).await;
-        let (proxy_port, proxy_task) = start_test_proxy(InboundProtocol::Socks, Vec::new()).await;
+        let (proxy_port, proxy_task) = start_socks_udp_test_proxy(Vec::new()).await;
         assert_socks_udp_round_trip(proxy_port, upstream_port).await;
         assert_eq!(upstream_task.await.unwrap(), b"ping");
         proxy_task.abort();
@@ -8323,7 +8484,7 @@ mod tests {
     async fn socks5_udp_associate_drops_udp_through_blackhole() {
         let (upstream_port, upstream_task) = start_udp_dns_server(b"pong".to_vec()).await;
         let rule = udp_route_rule(Vec::new(), Vec::new(), "blocked", 53);
-        let (proxy_port, proxy_task) = start_test_proxy(InboundProtocol::Socks, vec![rule]).await;
+        let (proxy_port, proxy_task) = start_socks_udp_test_proxy(vec![rule]).await;
         let (_tcp, udp, udp_relay) = start_socks_udp_associate(proxy_port).await;
 
         let blocked_destination = Destination {
@@ -8365,7 +8526,7 @@ mod tests {
     #[tokio::test]
     async fn socks5_udp_associate_quic_sniffing_protocol_routes_quic_packets() {
         let (upstream_port, upstream_task) = start_udp_dns_server(b"pong".to_vec()).await;
-        let mut inbound = test_inbound(InboundProtocol::Socks);
+        let mut inbound = socks_udp_inbound();
         inbound.sniffing = Some(sniffing_config("quic"));
         let mut protocol_rule = udp_route_rule(Vec::new(), Vec::new(), "blocked", upstream_port);
         protocol_rule.protocol = vec!["quic".to_owned()];
@@ -8435,7 +8596,7 @@ mod tests {
     #[tokio::test]
     async fn socks5_udp_associate_drops_malformed_packet_without_stopping() {
         let (upstream_port, upstream_task) = start_udp_dns_server(b"pong".to_vec()).await;
-        let (proxy_port, proxy_task) = start_test_proxy(InboundProtocol::Socks, Vec::new()).await;
+        let (proxy_port, proxy_task) = start_socks_udp_test_proxy(Vec::new()).await;
         let (_tcp, udp, udp_relay) = start_socks_udp_associate(proxy_port).await;
 
         let malformed_packet = [0x00, 0x00, 0x01, 0x01, 127, 0, 0, 1, 0, 53, b'x'];
@@ -8472,7 +8633,7 @@ mod tests {
     #[tokio::test]
     async fn socks5_udp_associate_on_ipv6_inbound_returns_ipv6_relay() {
         let (upstream_port, upstream_task) = start_udp_dns_server_on("::1", b"pong".to_vec()).await;
-        let mut inbound = test_inbound(InboundProtocol::Socks);
+        let mut inbound = socks_udp_inbound();
         inbound.listen = Some("::1".parse().unwrap());
         let (proxy_port, proxy_task) = start_proxy_with_outbounds(
             inbound,
@@ -8512,8 +8673,7 @@ mod tests {
             upstream_port,
         );
         let domain_rule = udp_route_rule(vec!["localhost"], Vec::new(), "direct", upstream_port);
-        let (proxy_port, proxy_task) = start_test_proxy_with_domain_strategy(
-            InboundProtocol::Socks,
+        let (proxy_port, proxy_task) = start_socks_udp_test_proxy_with_domain_strategy(
             Some("IPOnDemand".to_owned()),
             vec![ip_rule, domain_rule],
         )
@@ -8529,12 +8689,9 @@ mod tests {
     async fn socks5_udp_use_ipv4_ignores_ipv6_only_ip_rules() {
         let (upstream_port, upstream_task) = start_udp_dns_server(b"pong".to_vec()).await;
         let rule = udp_route_rule(Vec::new(), vec!["::1"], "blocked", upstream_port);
-        let (proxy_port, proxy_task) = start_test_proxy_with_domain_strategy(
-            InboundProtocol::Socks,
-            Some("UseIPv4".to_owned()),
-            vec![rule],
-        )
-        .await;
+        let (proxy_port, proxy_task) =
+            start_socks_udp_test_proxy_with_domain_strategy(Some("UseIPv4".to_owned()), vec![rule])
+                .await;
 
         assert_socks_udp_round_trip_with_host(proxy_port, "localhost", upstream_port).await;
         assert_eq!(upstream_task.await.unwrap(), b"ping");
@@ -8545,12 +8702,9 @@ mod tests {
     async fn socks5_udp_use_ipv6_applies_ipv6_ip_rules() {
         let (upstream_port, upstream_task) = start_udp_dns_server(b"pong".to_vec()).await;
         let rule = udp_route_rule(Vec::new(), vec!["::1"], "blocked", upstream_port);
-        let (proxy_port, proxy_task) = start_test_proxy_with_domain_strategy(
-            InboundProtocol::Socks,
-            Some("UseIPv6".to_owned()),
-            vec![rule],
-        )
-        .await;
+        let (proxy_port, proxy_task) =
+            start_socks_udp_test_proxy_with_domain_strategy(Some("UseIPv6".to_owned()), vec![rule])
+                .await;
 
         assert_socks_udp_no_response(proxy_port, "localhost", upstream_port).await;
         assert!(!upstream_task.is_finished());
@@ -8563,7 +8717,7 @@ mod tests {
         let (upstream_port, upstream_task) = start_udp_dns_server(b"pong".to_vec()).await;
         let rule = udp_route_rule(Vec::new(), vec!["::1"], "direct", upstream_port);
         let (proxy_port, proxy_task) = start_proxy_with_domain_strategy_and_outbounds(
-            test_inbound(InboundProtocol::Socks),
+            socks_udp_inbound(),
             Some("UseIPv4v6".to_owned()),
             vec![rule],
             vec![
@@ -8583,7 +8737,7 @@ mod tests {
         let (upstream_port, upstream_task) = start_udp_dns_server(b"pong".to_vec()).await;
         let rule = udp_route_rule(Vec::new(), vec!["127.0.0.1"], "direct", upstream_port);
         let (proxy_port, proxy_task) = start_proxy_with_domain_strategy_and_outbounds(
-            test_inbound(InboundProtocol::Socks),
+            socks_udp_inbound(),
             Some("UseIPv6v4".to_owned()),
             vec![rule],
             vec![
@@ -8602,8 +8756,7 @@ mod tests {
     async fn socks5_udp_dual_family_strategy_ignores_non_ip_rules_when_resolved() {
         let (upstream_port, upstream_task) = start_udp_dns_server(b"pong".to_vec()).await;
         let rule = udp_route_rule(Vec::new(), Vec::new(), "blocked", upstream_port);
-        let (proxy_port, proxy_task) = start_test_proxy_with_domain_strategy(
-            InboundProtocol::Socks,
+        let (proxy_port, proxy_task) = start_socks_udp_test_proxy_with_domain_strategy(
             Some("UseIPv4v6".to_owned()),
             vec![rule],
         )
@@ -8623,8 +8776,7 @@ mod tests {
             "blocked",
             upstream_port,
         );
-        let (proxy_port, proxy_task) = start_test_proxy_with_domain_strategy(
-            InboundProtocol::Socks,
+        let (proxy_port, proxy_task) = start_socks_udp_test_proxy_with_domain_strategy(
             Some("IPIfNonMatch".to_owned()),
             vec![rule],
         )
@@ -8646,8 +8798,7 @@ mod tests {
             upstream_port,
         );
         let domain_rule = udp_route_rule(vec!["localhost"], Vec::new(), "direct", upstream_port);
-        let (proxy_port, proxy_task) = start_test_proxy_with_domain_strategy(
-            InboundProtocol::Socks,
+        let (proxy_port, proxy_task) = start_socks_udp_test_proxy_with_domain_strategy(
             Some("IPIfNonMatch".to_owned()),
             vec![ip_rule, domain_rule],
         )
@@ -8731,7 +8882,7 @@ mod tests {
         let (upstream_port, upstream_task) = start_udp_dns_server(b"pong".to_vec()).await;
         let shadowsocks_port = start_shadowsocks_udp_upstream("secret").await;
         let (proxy_port, proxy_task) = start_proxy_with_outbounds(
-            test_inbound(InboundProtocol::Socks),
+            socks_udp_inbound(),
             Vec::new(),
             vec![shadowsocks_outbound("direct", shadowsocks_port, "secret")],
         )
@@ -8747,7 +8898,7 @@ mod tests {
         let (upstream_port, upstream_task) = start_udp_dns_server_on("::1", b"pong".to_vec()).await;
         let shadowsocks_port = start_shadowsocks_udp_upstream_on("::1", "secret").await;
         let (proxy_port, proxy_task) = start_proxy_with_outbounds(
-            test_inbound(InboundProtocol::Socks),
+            socks_udp_inbound(),
             Vec::new(),
             vec![shadowsocks_outbound_with_address(
                 "direct",
@@ -8783,7 +8934,7 @@ mod tests {
         let (upstream_port, upstream_task) = start_udp_dns_server(b"pong".to_vec()).await;
         let socks_port = start_socks_udp_upstream().await;
         let (proxy_port, proxy_task) = start_proxy_with_outbounds(
-            test_inbound(InboundProtocol::Socks),
+            socks_udp_inbound(),
             Vec::new(),
             vec![socks_outbound("direct", socks_port, None, None)],
         )
@@ -8800,7 +8951,7 @@ mod tests {
         let id = "01234567-89ab-cdef-0123-456789abcdef";
         let vmess_port = start_vmess_udp_upstream(upstream_port, id).await;
         let (proxy_port, proxy_task) = start_proxy_with_outbounds(
-            test_inbound(InboundProtocol::Socks),
+            socks_udp_inbound(),
             Vec::new(),
             vec![vmess_outbound("direct", vmess_port, id)],
         )
@@ -8817,7 +8968,7 @@ mod tests {
         let id = "01234567-89ab-cdef-0123-456789abcdef";
         let vmess_port = start_tls_vmess_udp_upstream(upstream_port, id).await;
         let (proxy_port, proxy_task) = start_proxy_with_outbounds(
-            test_inbound(InboundProtocol::Socks),
+            socks_udp_inbound(),
             Vec::new(),
             vec![tls_vmess_outbound("direct", vmess_port, id)],
         )
@@ -8834,7 +8985,7 @@ mod tests {
         let id = "01234567-89ab-cdef-0123-456789abcdef";
         let vless_port = start_vless_udp_upstream(upstream_port, id).await;
         let (proxy_port, proxy_task) = start_proxy_with_outbounds(
-            test_inbound(InboundProtocol::Socks),
+            socks_udp_inbound(),
             Vec::new(),
             vec![vless_outbound("direct", vless_port, id)],
         )
@@ -8871,7 +9022,7 @@ mod tests {
         let (upstream_port, upstream_task) = start_udp_dns_server(b"pong".to_vec()).await;
         let socks_port = start_socks_udp_upstream_with_unspecified_relay().await;
         let (proxy_port, proxy_task) = start_proxy_with_outbounds(
-            test_inbound(InboundProtocol::Socks),
+            socks_udp_inbound(),
             Vec::new(),
             vec![socks_outbound("direct", socks_port, None, None)],
         )
@@ -8887,7 +9038,7 @@ mod tests {
         let (upstream_port, upstream_task) = start_udp_dns_server_on("::1", b"pong".to_vec()).await;
         let socks_port = start_ipv6_socks_udp_upstream_with_unspecified_relay().await;
         let (proxy_port, proxy_task) = start_proxy_with_outbounds(
-            test_inbound(InboundProtocol::Socks),
+            socks_udp_inbound(),
             Vec::new(),
             vec![socks_outbound_with_address(
                 "direct", "::1", socks_port, None, None,
@@ -8905,7 +9056,7 @@ mod tests {
         let (upstream_port, upstream_task) = start_udp_dns_server(b"pong".to_vec()).await;
         let socks_port = start_tls_socks_udp_upstream().await;
         let (proxy_port, proxy_task) = start_proxy_with_outbounds(
-            test_inbound(InboundProtocol::Socks),
+            socks_udp_inbound(),
             Vec::new(),
             vec![tls_socks_outbound("direct", socks_port, None, None)],
         )
@@ -9694,7 +9845,7 @@ mod tests {
         let (upstream_port, upstream_task) = start_udp_dns_server(b"pong".to_vec()).await;
         let trojan_port = start_trojan_udp_upstream(upstream_port, "secret").await;
         let (proxy_port, proxy_task) = start_proxy_with_outbounds(
-            test_inbound(InboundProtocol::Socks),
+            socks_udp_inbound(),
             Vec::new(),
             vec![trojan_outbound("direct", trojan_port, "secret")],
         )
@@ -9709,7 +9860,7 @@ mod tests {
     async fn socks5_udp_trojan_response_uses_upstream_destination() {
         let trojan_port = start_trojan_udp_response_destination_upstream("secret").await;
         let (proxy_port, proxy_task) = start_proxy_with_outbounds(
-            test_inbound(InboundProtocol::Socks),
+            socks_udp_inbound(),
             Vec::new(),
             vec![trojan_outbound("direct", trojan_port, "secret")],
         )
@@ -9740,7 +9891,7 @@ mod tests {
     async fn socks5_udp_trojan_no_response_does_not_block_later_datagrams() {
         let trojan_port = start_silent_then_loud_trojan_udp_upstream("secret").await;
         let (proxy_port, proxy_task) = start_proxy_with_outbounds(
-            test_inbound(InboundProtocol::Socks),
+            socks_udp_inbound(),
             Vec::new(),
             vec![trojan_outbound("direct", trojan_port, "secret")],
         )
@@ -9868,6 +10019,35 @@ mod tests {
         assert!(!upstream_task.is_finished());
         upstream_task.abort();
         proxy_task.abort();
+    }
+
+    #[tokio::test]
+    async fn freedom_redirect_preserves_destination_network() {
+        let mut outbound = freedom_outbound_with_domain_strategy(None);
+        outbound.settings = Some(xrs_config::OutboundSettings {
+            servers: Vec::new(),
+            response: None,
+            redirect: Some("127.0.0.1:8443".to_owned()),
+            domain_strategy: None,
+            target_strategy: None,
+            proxy_protocol: None,
+            user_level: None,
+            fragment: None,
+            noises: None,
+            final_rules: None,
+            extra: std::collections::BTreeMap::new(),
+        });
+        let destination = Destination {
+            host: DestinationHost::parse("192.0.2.1").unwrap(),
+            port: 443,
+            network: Network::Udp,
+        };
+
+        let resolved = freedom_destination(&outbound, &destination).await.unwrap();
+
+        assert_eq!(resolved.host, DestinationHost::parse("127.0.0.1").unwrap());
+        assert_eq!(resolved.port, 8443);
+        assert_eq!(resolved.network, Network::Udp);
     }
 
     #[tokio::test]
@@ -10847,6 +11027,107 @@ mod tests {
         assert!(received.starts_with("PROXY TCP4 127.0.0.1 127.0.0.1 "));
         assert!(received.ends_with("\r\nGET"));
         proxy_task.abort();
+    }
+
+    #[tokio::test]
+    async fn freedom_proxy_protocol_v1_header_precedes_payload_through_chained_socks_proxy() {
+        let received = connect_freedom_through_socks_proxy_with_proxy_protocol(
+            DestinationHost::parse("127.0.0.1").unwrap(),
+            Some(SocketAddr::from(([127, 0, 0, 1], 12345))),
+        )
+        .await;
+
+        assert!(received.starts_with("PROXY TCP4 127.0.0.1 127.0.0.1 12345 443"));
+        assert!(received.ends_with("\r\nGET"));
+    }
+
+    #[tokio::test]
+    async fn freedom_proxy_protocol_v1_unknown_header_precedes_payload_through_chained_socks_domain()
+     {
+        let received = connect_freedom_through_socks_proxy_with_proxy_protocol(
+            DestinationHost::parse("example.test").unwrap(),
+            Some(SocketAddr::from(([127, 0, 0, 1], 12345))),
+        )
+        .await;
+
+        assert!(received.starts_with("PROXY UNKNOWN\r\nGET"));
+    }
+
+    async fn connect_freedom_through_socks_proxy_with_proxy_protocol(
+        destination_host: DestinationHost,
+        source: Option<SocketAddr>,
+    ) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let proxy_port = listener.local_addr().unwrap().port();
+        let expected_host = destination_host.clone();
+        let proxy_task = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut greeting = [0_u8; 3];
+            stream.read_exact(&mut greeting).await.unwrap();
+            assert_eq!(greeting, [0x05, 0x01, 0x00]);
+            stream.write_all(&[0x05, 0x00]).await.unwrap();
+            let destination = accept_socks5_request(&mut stream).await;
+            assert_eq!(destination.host, expected_host);
+            assert_eq!(destination.port, 443);
+            stream
+                .write_all(&[0x05, 0x00, 0x00, 0x01, 0, 0, 0, 0, 0, 0])
+                .await
+                .unwrap();
+            let mut received = Vec::new();
+            loop {
+                let mut byte = [0_u8; 1];
+                stream.read_exact(&mut byte).await.unwrap();
+                received.push(byte[0]);
+                if received.len() >= 5 && !received.starts_with(b"PROXY") {
+                    break;
+                }
+                if received.ends_with(b"\r\nGET") {
+                    break;
+                }
+            }
+            String::from_utf8(received).unwrap()
+        });
+        let outbound = OutboundConfig {
+            tag: "direct".to_owned(),
+            protocol: OutboundProtocol::Freedom,
+            send_through: None,
+            proxy_settings: Some(xrs_config::ProxySettingsConfig {
+                tag: Some("proxy".to_owned()),
+                extra: std::collections::BTreeMap::new(),
+            }),
+            settings: Some(xrs_config::OutboundSettings {
+                servers: Vec::new(),
+                response: None,
+                redirect: None,
+                domain_strategy: None,
+                target_strategy: None,
+                proxy_protocol: Some(1),
+                user_level: None,
+                fragment: None,
+                noises: None,
+                final_rules: None,
+                extra: std::collections::BTreeMap::new(),
+            }),
+            stream_settings: None,
+            mux: None,
+            extra: Default::default(),
+        };
+        let proxy = socks_outbound("proxy", proxy_port, None, None);
+        let dns_hosts = Arc::new(RuntimeDns::default());
+        let destination = Destination::tcp(destination_host, 443);
+        let mut remote = connect_freedom_for_outbound(
+            &outbound,
+            &destination,
+            source,
+            &HashMap::from([("proxy".to_owned(), proxy)]),
+            &dns_hosts,
+        )
+        .await
+        .unwrap();
+
+        remote.write_all(b"GET /").await.unwrap();
+
+        proxy_task.await.unwrap()
     }
 
     #[tokio::test]
@@ -11996,6 +12277,245 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn use_ipv4_routing_overrides_ipv6_configured_dns_query_strategy() {
+        let (dns_port, dns_task) = start_udp_dns_a_server([127, 0, 0, 7]).await;
+        let destination =
+            Destination::tcp(DestinationHost::Domain("routing-ipv4.test".to_owned()), 443);
+        let session = SessionContext::new("test-in", destination.clone());
+        let rule = xrs_config::RoutingRuleConfig {
+            rule_type: None,
+            inbound_tag: vec!["test-in".to_owned()],
+            port: Some(443_u16.into()),
+            domain: Vec::new(),
+            ip: vec!["127.0.0.7".to_owned()],
+            source: Vec::new(),
+            source_port: None,
+            network: None,
+            protocol: Vec::new(),
+            user: Vec::new(),
+            attrs: None,
+            outbound_tag: Some("blocked".to_owned()),
+            balancer_tag: None,
+            extra: std::collections::BTreeMap::new(),
+        };
+        let config = RootConfig {
+            outbounds: vec![
+                freedom_outbound_with_tag("direct"),
+                blackhole_outbound("blocked"),
+            ],
+            routing: xrs_config::RoutingConfig {
+                rules: vec![rule],
+                balancers: Vec::new(),
+                domain_strategy: Some("UseIPv4".to_owned()),
+                domain_matcher: None,
+                extra: Default::default(),
+            },
+            dns: Some(serde_json::json!({
+                "queryStrategy": "UseIPv6",
+                "disableFallback": true,
+                "servers": [{"address":"127.0.0.1","port":dns_port,"domains":["domain:routing-ipv4.test"]}]
+            })),
+            ..RootConfig::default()
+        };
+        let router = Router::from_config(&config).unwrap();
+        let dns_hosts = Arc::new(parse_runtime_dns(config.dns.as_ref()));
+
+        let outbound = pick_tcp_outbound(&router, &session, &destination, &dns_hosts)
+            .await
+            .unwrap();
+        let query = timeout(Duration::from_millis(200), dns_task)
+            .await
+            .unwrap()
+            .unwrap();
+        let question_end = skip_dns_name(&query, 12).unwrap();
+
+        assert_eq!(&query[question_end..question_end + 2], &1_u16.to_be_bytes());
+        assert_eq!(outbound, "blocked");
+    }
+
+    #[tokio::test]
+    async fn use_ipv6_routing_queries_configured_dns_for_aaaa_records() {
+        let expected_ip = "2001:db8::7".parse().unwrap();
+        let (dns_port, dns_task) = start_udp_dns_aaaa_server(expected_ip).await;
+        let destination =
+            Destination::tcp(DestinationHost::Domain("routing-ipv6.test".to_owned()), 443);
+        let session = SessionContext::new("test-in", destination.clone());
+        let rule = xrs_config::RoutingRuleConfig {
+            rule_type: None,
+            inbound_tag: vec!["test-in".to_owned()],
+            port: Some(443_u16.into()),
+            domain: Vec::new(),
+            ip: vec!["2001:db8::7".to_owned()],
+            source: Vec::new(),
+            source_port: None,
+            network: None,
+            protocol: Vec::new(),
+            user: Vec::new(),
+            attrs: None,
+            outbound_tag: Some("blocked".to_owned()),
+            balancer_tag: None,
+            extra: std::collections::BTreeMap::new(),
+        };
+        let config = RootConfig {
+            outbounds: vec![
+                freedom_outbound_with_tag("direct"),
+                blackhole_outbound("blocked"),
+            ],
+            routing: xrs_config::RoutingConfig {
+                rules: vec![rule],
+                balancers: Vec::new(),
+                domain_strategy: Some("UseIPv6".to_owned()),
+                domain_matcher: None,
+                extra: Default::default(),
+            },
+            dns: Some(serde_json::json!({
+                "disableFallback": true,
+                "servers": [{"address":"127.0.0.1","port":dns_port,"domains":["domain:routing-ipv6.test"]}]
+            })),
+            ..RootConfig::default()
+        };
+        let router = Router::from_config(&config).unwrap();
+        let dns_hosts = Arc::new(parse_runtime_dns(config.dns.as_ref()));
+
+        let outbound = pick_tcp_outbound(&router, &session, &destination, &dns_hosts)
+            .await
+            .unwrap();
+        let query = timeout(Duration::from_millis(200), dns_task)
+            .await
+            .unwrap()
+            .unwrap();
+        let question_end = skip_dns_name(&query, 12).unwrap();
+
+        assert_eq!(
+            &query[question_end..question_end + 2],
+            &28_u16.to_be_bytes()
+        );
+        assert_eq!(outbound, "blocked");
+    }
+
+    #[tokio::test]
+    async fn use_ipv6_udp_routing_queries_configured_dns_for_aaaa_records() {
+        let expected_ip = "2001:db8::8".parse().unwrap();
+        let (dns_port, dns_task) = start_udp_dns_aaaa_server(expected_ip).await;
+        let destination = Destination {
+            host: DestinationHost::Domain("routing-udp-ipv6.test".to_owned()),
+            port: 53,
+            network: Network::Udp,
+        };
+        let session = SessionContext::new("test-in", destination.clone());
+        let rule = xrs_config::RoutingRuleConfig {
+            rule_type: None,
+            inbound_tag: vec!["test-in".to_owned()],
+            port: Some(53_u16.into()),
+            domain: Vec::new(),
+            ip: vec!["2001:db8::8".to_owned()],
+            source: Vec::new(),
+            source_port: None,
+            network: Some("udp".to_owned().into()),
+            protocol: Vec::new(),
+            user: Vec::new(),
+            attrs: None,
+            outbound_tag: Some("blocked".to_owned()),
+            balancer_tag: None,
+            extra: std::collections::BTreeMap::new(),
+        };
+        let config = RootConfig {
+            outbounds: vec![
+                freedom_outbound_with_tag("direct"),
+                blackhole_outbound("blocked"),
+            ],
+            routing: xrs_config::RoutingConfig {
+                rules: vec![rule],
+                balancers: Vec::new(),
+                domain_strategy: Some("UseIPv6".to_owned()),
+                domain_matcher: None,
+                extra: Default::default(),
+            },
+            dns: Some(serde_json::json!({
+                "disableFallback": true,
+                "servers": [{"address":"127.0.0.1","port":dns_port,"domains":["domain:routing-udp-ipv6.test"]}]
+            })),
+            ..RootConfig::default()
+        };
+        let router = Router::from_config(&config).unwrap();
+        let dns_hosts = Arc::new(parse_runtime_dns(config.dns.as_ref()));
+
+        let outbound = pick_udp_outbound(&router, &session, &destination, &dns_hosts)
+            .await
+            .unwrap();
+        let query = timeout(Duration::from_millis(200), dns_task)
+            .await
+            .unwrap()
+            .unwrap();
+        let question_end = skip_dns_name(&query, 12).unwrap();
+
+        assert_eq!(
+            &query[question_end..question_end + 2],
+            &28_u16.to_be_bytes()
+        );
+        assert_eq!(outbound, "blocked");
+    }
+
+    #[tokio::test]
+    async fn use_ipv4v6_routing_queries_configured_dns_for_aaaa_after_a_miss() {
+        let expected_ip = "2001:db8::9".parse().unwrap();
+        let (dns_port, dns_task) = start_udp_dns_fallback_server(28, expected_ip).await;
+        let destination = Destination::tcp(
+            DestinationHost::Domain("routing-ipv4v6.test".to_owned()),
+            443,
+        );
+        let session = SessionContext::new("test-in", destination.clone());
+        let rule = xrs_config::RoutingRuleConfig {
+            rule_type: None,
+            inbound_tag: vec!["test-in".to_owned()],
+            port: Some(443_u16.into()),
+            domain: Vec::new(),
+            ip: vec!["2001:db8::9".to_owned()],
+            source: Vec::new(),
+            source_port: None,
+            network: None,
+            protocol: Vec::new(),
+            user: Vec::new(),
+            attrs: None,
+            outbound_tag: Some("blocked".to_owned()),
+            balancer_tag: None,
+            extra: std::collections::BTreeMap::new(),
+        };
+        let config = RootConfig {
+            outbounds: vec![
+                freedom_outbound_with_tag("direct"),
+                blackhole_outbound("blocked"),
+            ],
+            routing: xrs_config::RoutingConfig {
+                rules: vec![rule],
+                balancers: Vec::new(),
+                domain_strategy: Some("UseIPv4v6".to_owned()),
+                domain_matcher: None,
+                extra: Default::default(),
+            },
+            dns: Some(serde_json::json!({
+                "disableFallback": true,
+                "servers": [{"address":"127.0.0.1","port":dns_port,"domains":["domain:routing-ipv4v6.test"]}]
+            })),
+            ..RootConfig::default()
+        };
+        let router = Router::from_config(&config).unwrap();
+        let dns_hosts = Arc::new(parse_runtime_dns(config.dns.as_ref()));
+
+        let outbound = pick_tcp_outbound(&router, &session, &destination, &dns_hosts)
+            .await
+            .unwrap();
+
+        assert_eq!(outbound, "blocked");
+        let queries = timeout(Duration::from_millis(200), dns_task)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(dns_question_record_type(&queries[0]), 1);
+        assert_eq!(dns_question_record_type(&queries[1]), 28);
+    }
+
+    #[tokio::test]
     async fn use_ipv4_ignores_ipv6_only_ip_rules() {
         let echo_port = start_echo_server().await;
         let rule = xrs_config::RoutingRuleConfig {
@@ -12806,7 +13326,7 @@ mod tests {
         client.read_to_end(&mut http_response).await.unwrap();
         assert_eq!(
             http_response,
-            b"HTTP/1.1 403 Forbidden\nConnection: close\nCache-Control: max-age=3600, public\nContent-Length: 0\n\n\n"
+            b"HTTP/1.1 403 Forbidden\r\nConnection: close\r\nCache-Control: max-age=3600, public\r\nContent-Length: 0\r\n\r\n"
         );
         proxy_task.abort();
     }
@@ -14316,6 +14836,12 @@ mod tests {
         start_proxy(test_inbound(protocol), rules).await
     }
 
+    async fn start_socks_udp_test_proxy(
+        rules: Vec<xrs_config::RoutingRuleConfig>,
+    ) -> (u16, tokio::task::JoinHandle<()>) {
+        start_proxy(socks_udp_inbound(), rules).await
+    }
+
     async fn start_tls_socks_inbound(alpn: Vec<String>) -> (u16, tokio::task::JoinHandle<()>, u16) {
         start_tls_socks_inbound_with_server_name(None, alpn).await
     }
@@ -14417,6 +14943,15 @@ mod tests {
             allocate: None,
             extra: Default::default(),
         }
+    }
+
+    fn socks_udp_inbound() -> InboundConfig {
+        let mut inbound = test_inbound(InboundProtocol::Socks);
+        inbound.settings = Some(xrs_config::InboundSettings {
+            udp: Some(true),
+            ..xrs_config::InboundSettings::default()
+        });
+        inbound
     }
 
     fn sniffing_config(dest_override: &str) -> xrs_config::SniffingConfig {
@@ -15546,8 +16081,29 @@ mod tests {
         domain_strategy: Option<String>,
         rules: Vec<xrs_config::RoutingRuleConfig>,
     ) -> (u16, tokio::task::JoinHandle<()>) {
-        start_proxy_with_domain_strategy_and_outbounds(
+        start_test_proxy_with_domain_strategy_inbound(
             test_inbound(protocol),
+            domain_strategy,
+            rules,
+        )
+        .await
+    }
+
+    async fn start_socks_udp_test_proxy_with_domain_strategy(
+        domain_strategy: Option<String>,
+        rules: Vec<xrs_config::RoutingRuleConfig>,
+    ) -> (u16, tokio::task::JoinHandle<()>) {
+        start_test_proxy_with_domain_strategy_inbound(socks_udp_inbound(), domain_strategy, rules)
+            .await
+    }
+
+    async fn start_test_proxy_with_domain_strategy_inbound(
+        inbound: InboundConfig,
+        domain_strategy: Option<String>,
+        rules: Vec<xrs_config::RoutingRuleConfig>,
+    ) -> (u16, tokio::task::JoinHandle<()>) {
+        start_proxy_with_domain_strategy_and_outbounds(
+            inbound,
             domain_strategy,
             rules,
             vec![
